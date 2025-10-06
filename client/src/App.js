@@ -5,6 +5,7 @@ import './App.css';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
+import QuizView from './QuizView'; // Import the new component
 
 pdfjs.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
@@ -14,6 +15,8 @@ function App() {
   const [numPages, setNumPages] = useState(null);
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [selectedPdf, setSelectedPdf] = useState('');
+  const [quizData, setQuizData] = useState(null);
+  const [isLoadingQuiz, setIsLoadingQuiz] = useState(false);
 
   const fetchFiles = async () => {
     try {
@@ -32,6 +35,7 @@ function App() {
     if (selectedPdf) {
       const fileUrl = `http://localhost:5000/files/${selectedPdf}`;
       setPdfUrl(fileUrl);
+      setQuizData(null); // Clear quiz when a new PDF is selected
     } else {
       setPdfUrl('');
     }
@@ -42,10 +46,7 @@ function App() {
   };
 
   const handleUpload = async () => {
-    if (!selectedFile) {
-      alert('Please select a file first!');
-      return;
-    }
+    if (!selectedFile) return;
     const formData = new FormData();
     formData.append('file', selectedFile);
 
@@ -53,27 +54,43 @@ function App() {
       const response = await axios.post('http://localhost:5000/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      alert(`File uploaded successfully: ${response.data.filename}`);
-      
-      // After upload, refresh the file list and select the new file
+      alert('File uploaded successfully!');
       await fetchFiles();
       setSelectedPdf(response.data.filename);
-      setSelectedFile(null); // Clear the file input
-      document.getElementById('file-input').value = ''; // Reset the file input element
-
     } catch (error) {
       console.error('Error uploading file:', error);
       alert('Error uploading file.');
     }
   };
   
+  const handleGenerateQuiz = async () => {
+    if (!selectedPdf) {
+      alert('Please select a PDF to generate a quiz from.');
+      return;
+    }
+    
+    setIsLoadingQuiz(true);
+    setQuizData(null);
+
+    try {
+      const response = await axios.post('http://localhost:5000/generate-quiz', {
+        filename: selectedPdf,
+      });
+      setQuizData(response.data);
+    } catch (error) {
+      console.error('Error generating quiz:', error);
+      alert('Failed to generate quiz. The AI might be busy or an error occurred. Please try again.');
+    } finally {
+      setIsLoadingQuiz(false);
+    }
+  };
+
   function onDocumentLoadSuccess({ numPages }) {
     setNumPages(numPages);
   }
 
   return (
     <div className="app-container">
-      {/* Sidebar for controls */}
       <aside className="sidebar">
         <header className="sidebar-header">
           <h1>Lumina</h1>
@@ -96,33 +113,47 @@ function App() {
             <select value={selectedPdf} onChange={(e) => setSelectedPdf(e.target.value)}>
               <option value="">-- Select a PDF --</option>
               {uploadedFiles.map(file => (
-                <option key={file} value={file}>{file.substring(14)}</option> // Show cleaned filename
+                <option key={file} value={file}>{file.substring(14)}</option>
               ))}
             </select>
+          </div>
+
+          <div className="quiz-section">
+            <button onClick={handleGenerateQuiz} disabled={!selectedPdf || isLoadingQuiz}>
+              {isLoadingQuiz ? '🧠 Generating...' : 'Generate Quiz'}
+            </button>
           </div>
         </div>
       </aside>
 
-      {/* Main content area for PDF viewer */}
       <main className="main-content">
-        <div className="pdf-viewer-container">
-          {pdfUrl ? (
-            <Document file={pdfUrl} onLoadSuccess={onDocumentLoadSuccess}>
-              {Array.from(new Array(numPages || 0), (el, index) => (
-                <Page 
-                  key={`page_${index + 1}`} 
-                  pageNumber={index + 1}
-                  renderTextLayer={false} // Optional: improves performance
-                />
-              ))}
-            </Document>
-          ) : (
-            <div className="placeholder">
-              <h2>Select a PDF to begin</h2>
-              <p>Choose a file from the dropdown or upload a new one to start your study session.</p>
-            </div>
-          )}
-        </div>
+        {quizData ? (
+          <QuizView quizData={quizData} onBack={() => setQuizData(null)} />
+        ) : (
+          <div className="pdf-viewer-container">
+            {isLoadingQuiz ? (
+              <div className="placeholder">
+                <h2>Generating Your Quiz...</h2>
+                <p>The AI is hard at work. This may take a moment.</p>
+              </div>
+            ) : pdfUrl ? (
+              <Document file={pdfUrl} onLoadSuccess={onDocumentLoadSuccess}>
+                {Array.from(new Array(numPages || 0), (el, index) => (
+                  <Page 
+                    key={`page_${index + 1}`} 
+                    pageNumber={index + 1}
+                    renderTextLayer={false}
+                  />
+                ))}
+              </Document>
+            ) : (
+              <div className="placeholder">
+                <h2>Select a PDF to begin</h2>
+                <p>Choose a file from the dropdown or upload a new one to start your study session.</p>
+              </div>
+            )}
+          </div>
+        )}
       </main>
     </div>
   );

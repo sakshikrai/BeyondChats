@@ -2,14 +2,11 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import './App.css';
 
-// Corrected imports for react-pdf v7+
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 
-// Using a static, known-good version of the worker from a CDN
 pdfjs.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-
 
 function App() {
   const [selectedFile, setSelectedFile] = useState(null);
@@ -18,15 +15,16 @@ function App() {
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [selectedPdf, setSelectedPdf] = useState('');
 
+  const fetchFiles = async () => {
+    try {
+      const response = await axios.get('http://localhost:5000/files');
+      setUploadedFiles(response.data);
+    } catch (error) {
+      console.error("Error fetching files:", error);
+    }
+  };
+
   useEffect(() => {
-    const fetchFiles = async () => {
-      try {
-        const response = await axios.get('http://localhost:5000/files');
-        setUploadedFiles(response.data);
-      } catch (error) {
-        console.error("Error fetching files:", error);
-      }
-    };
     fetchFiles();
   }, []);
 
@@ -57,8 +55,11 @@ function App() {
       });
       alert(`File uploaded successfully: ${response.data.filename}`);
       
-      setUploadedFiles([...uploadedFiles, response.data.filename]);
+      // After upload, refresh the file list and select the new file
+      await fetchFiles();
       setSelectedPdf(response.data.filename);
+      setSelectedFile(null); // Clear the file input
+      document.getElementById('file-input').value = ''; // Reset the file input element
 
     } catch (error) {
       console.error('Error uploading file:', error);
@@ -71,38 +72,58 @@ function App() {
   }
 
   return (
-    <div className="App">
-      <header className="App-header">
-        <h1>BeyondChats PDF Quiz App</h1>
-        
-        <div className="upload-section">
-          <p>Upload a new PDF coursebook:</p>
-          <input type="file" onChange={handleFileChange} accept=".pdf" />
-          <button onClick={handleUpload}>Upload PDF</button>
+    <div className="app-container">
+      {/* Sidebar for controls */}
+      <aside className="sidebar">
+        <header className="sidebar-header">
+          <h1>Lumina</h1>
+          <p>Your Personal Study Companion</p>
+        </header>
+
+        <div className="sidebar-content">
+          <div className="upload-section">
+            <h2>Upload a New PDF</h2>
+            <input id="file-input" type="file" onChange={handleFileChange} accept=".pdf" />
+            <button onClick={handleUpload} disabled={!selectedFile}>
+              Upload PDF
+            </button>
+          </div>
+
+          <hr />
+
+          <div className="selector-section">
+            <h2>Select an Existing PDF</h2>
+            <select value={selectedPdf} onChange={(e) => setSelectedPdf(e.target.value)}>
+              <option value="">-- Select a PDF --</option>
+              {uploadedFiles.map(file => (
+                <option key={file} value={file}>{file.substring(14)}</option> // Show cleaned filename
+              ))}
+            </select>
+          </div>
         </div>
+      </aside>
 
-        <hr />
-
-        <div className="selector-section">
-          <p>Or select an existing PDF:</p>
-          <select value={selectedPdf} onChange={(e) => setSelectedPdf(e.target.value)}>
-            <option value="">-- Select a PDF --</option>
-            {uploadedFiles.map(file => (
-              <option key={file} value={file}>{file}</option>
-            ))}
-          </select>
+      {/* Main content area for PDF viewer */}
+      <main className="main-content">
+        <div className="pdf-viewer-container">
+          {pdfUrl ? (
+            <Document file={pdfUrl} onLoadSuccess={onDocumentLoadSuccess}>
+              {Array.from(new Array(numPages || 0), (el, index) => (
+                <Page 
+                  key={`page_${index + 1}`} 
+                  pageNumber={index + 1}
+                  renderTextLayer={false} // Optional: improves performance
+                />
+              ))}
+            </Document>
+          ) : (
+            <div className="placeholder">
+              <h2>Select a PDF to begin</h2>
+              <p>Choose a file from the dropdown or upload a new one to start your study session.</p>
+            </div>
+          )}
         </div>
-      </header>
-
-      <div className="pdf-viewer">
-        {pdfUrl && (
-          <Document file={pdfUrl} onLoadSuccess={onDocumentLoadSuccess}>
-            {Array.from(new Array(numPages || 0), (el, index) => (
-              <Page key={`page_${index + 1}`} pageNumber={index + 1} />
-            ))}
-          </Document>
-        )}
-      </div>
+      </main>
     </div>
   );
 }

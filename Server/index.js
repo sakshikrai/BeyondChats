@@ -7,15 +7,12 @@ const fs = require('fs');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// --- Middleware ---
 app.use(cors()); 
 app.use(express.json());
 
-// This is the crucial line that was missing. 
-// It makes files in the 'uploads' folder accessible via the '/files' URL path.
+// This is the crucial line that serves files from the 'uploads' folder
 app.use('/files', express.static(path.join(__dirname, 'uploads')));
 
-// --- Multer Configuration ---
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     cb(null, 'uploads/');
@@ -27,7 +24,6 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage: storage });
 
-// --- Routes ---
 app.get('/', (req, res) => {
   res.send('Hello from the BeyondChats server!');
 });

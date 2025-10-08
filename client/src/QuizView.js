@@ -1,13 +1,8 @@
-// In client/src/QuizView.js
 import React, { useState } from 'react';
 
-const QuizView = ({ quizData }) => {
+const QuizView = ({ quizData, onBack }) => {
   const [userAnswers, setUserAnswers] = useState({});
   const [showResults, setShowResults] = useState(false);
-
-  if (!quizData) {
-    return null; // Don't render anything if there's no quiz data
-  }
 
   const handleOptionChange = (questionIndex, option) => {
     setUserAnswers({
@@ -58,9 +53,12 @@ const QuizView = ({ quizData }) => {
 
   return (
     <div className="quiz-container">
-      <h2>Quiz Time!</h2>
+      <div className="quiz-header">
+        <h2>Quiz Time!</h2>
+        <button onClick={onBack} className="back-btn">← Back to PDF</button>
+      </div>
       {quizData.mcqs && quizData.mcqs.map(renderMCQ)}
-      {/* We can add rendering for SAQs and LAQs here later */}
+      {/* Yahan SAQs aur LAQs render karne ka code add kar sakte hain */}
 
       {!showResults && (
         <button onClick={handleSubmit} className="submit-btn">

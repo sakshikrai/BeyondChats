@@ -1,248 +1,82 @@
-body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  background-color: #f4f7f9;
-  color: #333;
-}
-
-.app-container {
-  display: flex;
-  height: 100vh;
-}
-
-.sidebar {
-  width: 350px;
-  background-color: #ffffff;
-  border-right: 1px solid #e0e0e0;
-  display: flex;
-  flex-direction: column;
-  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
-}
-
-.sidebar-header {
-  padding: 24px;
-  border-bottom: 1px solid #e0e0e0;
+.App {
   text-align: center;
 }
 
-.sidebar-header h1 {
-  margin: 0;
-  font-size: 28px;
-  color: #2c3e50;
-  font-weight: 600;
-}
-
-.sidebar-header p {
-  margin-top: 4px;
-  color: #7f8c8d;
-}
-
-.sidebar-content {
-  padding: 24px;
-  flex-grow: 1;
-  overflow-y: auto;
-}
-
-.upload-section, .selector-section {
-  margin-bottom: 24px;
-}
-
-h2 {
-  font-size: 18px;
-  color: #34495e;
-  margin-top: 0;
-  margin-bottom: 12px;
-  border-bottom: 2px solid #3498db;
-  padding-bottom: 6px;
-  display: inline-block;
-}
-
-input[type="file"] {
-  width: 100%;
-  margin-bottom: 12px;
-  padding: 8px;
-  border: 1px solid #bdc3c7;
-  border-radius: 4px;
-  font-size: 14px;
-}
-
-button, select {
-  width: 100%;
-  padding: 12px;
-  border-radius: 5px;
-  border: 1px solid transparent;
-  font-size: 16px;
-  cursor: pointer;
-  transition: all 0.2s ease-in-out;
-}
-
-button {
-  background-color: #3498db;
+.App-header {
+  background-color: #282c34;
+  padding: 20px;
   color: white;
-  font-weight: bold;
-}
-
-button:hover {
-  background-color: #2980b9;
-}
-
-button:disabled {
-  background-color: #bdc3c7;
-  cursor: not-allowed;
-}
-
-select {
-  background-color: #ecf0f1;
-  border: 1px solid #bdc3c7;
-  color: #34495e;
-}
-
-hr {
-  border: none;
-  border-top: 1px solid #e0e0e0;
-  margin: 24px 0;
+  margin-bottom: 20px;
 }
 
 .main-content {
-  flex-grow: 1;
-  overflow-y: auto;
-  background-color: #f4f7f9;
-  padding: 24px;
+  display: flex;
+  flex-direction: row;
+  padding: 0 20px;
+  gap: 20px;
+}
+
+.controls-container {
+  display: flex;
+  flex-direction: column;
+  width: 30%;
+  max-width: 400px;
+}
+
+.card {
+  background-color: #f0f0f0;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+input[type='file'] {
+  margin-bottom: 10px;
+}
+
+button {
+  background-color: #61dafb;
+  border: none;
+  color: white;
+  padding: 10px 20px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+  font-size: 16px;
+  margin: 4px 2px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+select {
+  width: 100%;
+  padding: 10px;
+  margin-top: 10px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
 }
 
 .pdf-viewer-container {
-  width: 100%;
-  max-width: 800px;
-  margin: 0 auto;
-  background: white;
-  padding: 20px;
+  flex-grow: 1;
+  border: 1px solid #ccc;
   border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  height: 80vh;
+  overflow-y: auto;
+  background-color: #e9e9e9;
 }
 
-.placeholder {
+.placeholder-text {
   display: flex;
-  flex-direction: column;
   justify-content: center;
   align-items: center;
-  height: calc(100vh - 48px);
-  text-align: center;
-  color: #95a5a6;
+  height: 100%;
+  color: #888;
+  font-size: 1.2rem;
 }
 
-.placeholder h2 {
-  border: none;
-}
-
-.react-pdf__Page__canvas {
-  width: 100% !important;
-  height: auto !important;
-  margin-bottom: 12px;
-  border-radius: 4px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.quiz-section {
-  margin-top: 24px;
-}
-
-.quiz-container {
-  max-width: 800px;
-  margin: 0 auto;
-  background: white;
-  padding: 24px 40px;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-}
-
-.quiz-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-}
-
-.quiz-header h2 {
-  margin: 0;
-  border-bottom: none;
-}
-
-.back-btn {
-  background: none;
-  border: 1px solid #bdc3c7;
-  color: #34495e;
-  padding: 8px 16px;
-  width: auto;
-}
-
-.back-btn:hover {
-  background-color: #f8f9fa;
-}
-
-.question-block {
-  margin-bottom: 32px;
-}
-
-.options {
-  display: flex;
-  flex-direction: column;
-}
-
-.option-label {
-  padding: 12px;
-  margin: 4px 0;
-  border: 1px solid #ecf0f1;
-  border-radius: 5px;
-  cursor: pointer;
-  transition: all 0.2s ease-in-out;
-}
-
-.option-label:hover {
-  background-color: #f8f9fa;
-  border-color: #3498db;
-}
-
-.option-label input {
-  margin-right: 12px;
-}
-
-.explanation {
-  margin-top: 12px;
-  padding: 12px;
-  background-color: #f0f9ff;
-  border-left: 4px solid #3498db;
-  border-radius: 4px;
-}
-
-.option-label.correct {
-  background-color: #e9f7ef;
-  border-color: #2ecc71;
-  font-weight: bold;
-}
-
-.option-label.incorrect {
-  background-color: #fbeae5;
-  border-color: #e74c3c;
-  opacity: 0.7;
-}
-
-.submit-btn {
-  background-color: #2ecc71;
-  font-weight: bold;
-}
-
-.submit-btn:hover {
-  background-color: #27ae60;
-}
-.download-btn {
-  margin-top: 12px;
-  background-color: #7f8c8d;
-}
-
-.download-btn:hover {
-  background-color: #95a5a6;
+/* Styles for react-pdf */
+.react-pdf__Page {
+  margin-bottom: 10px;
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.2);
 }

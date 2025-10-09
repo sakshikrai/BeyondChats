@@ -1,82 +1,164 @@
-require('dotenv').config();
-const express = require('express');
-const cors = require('cors');
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
+import express from 'express';
+import cors from 'cors';
+import multer from 'multer';
+import mongoose from 'mongoose';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { createRequire } from 'module';
+import dotenv from 'dotenv';
+import OpenAI from 'openai';
+
+dotenv.config();
+const require = createRequire(import.meta.url);
 const pdf = require('pdf-parse');
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const port = 5000;
+
+// --- OpenAI Setup ---
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+
+// --- Directory Setup ---
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const uploadsDir = path.join(__dirname, 'uploads');
 
 app.use(cors());
 app.use(express.json());
-app.use('/files', express.static(path.join(__dirname, 'uploads')));
 
+// Serve static files from the 'uploads' directory
+app.use('/uploads', express.static(uploadsDir));
+
+// --- MongoDB Connection ---
+mongoose
+  .connect('mongodb://localhost:27017/beyond-chats', {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+  })
+  .then(() => console.log('MongoDB connected'))
+  .catch((err) => console.log(err));
+
+// --- PDF Schema ---
+const pdfSchema = new mongoose.Schema({
+  originalFilename: String,
+  savedFilename: String, // The unique name used for saving the file
+  textContent: String,
+});
+
+const Pdf = mongoose.model('Pdf', pdfSchema);
+
+// --- Multer Storage ---
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, 'uploads/'),
-  filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname),
-});
-const upload = multer({ storage: storage });
-
-// THIS IS THE MISSING ROUTE
-app.get('/', (req, res) => {
-  res.send('Hello from the BeyondChats server!');
+  destination: (req, file, cb) => {
+    cb(null, uploadsDir);
+  },
+  filename: (req, file, cb) => {
+    cb(null, `${Date.now()}-${file.originalname}`);
+  },
 });
 
-app.get('/files', (req, res) => {
-  const uploadsDirectory = path.join(__dirname, 'uploads');
-  fs.readdir(uploadsDirectory, (err, files) => {
-    if (err) return res.status(500).json({ message: 'Unable to scan files.' });
-    const pdfFiles = files.filter(file => path.extname(file).toLowerCase() === '.pdf');
-    res.status(200).json(pdfFiles);
+const upload = multer({ storage });
+
+// --- API Endpoints ---
+app.post('/upload', upload.single('file'), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).send('No file uploaded.');
+  }
+
+  const dataBuffer = fs.readFileSync(req.file.path);
+
+  try {
+    const data = await pdf(dataBuffer);
+    const newPdf = new Pdf({
+      originalFilename: req.file.originalname,
+      savedFilename: req.file.filename,
+      textContent: data.text,
+    });
+    await newPdf.save();
+    res.status(200).send('File uploaded and processed successfully.');
+  } catch (error) {
+    console.error(error);
+    res.status(500).send('Error processing PDF file.');
+  }
+});
+
+app.get('/pdfs', async (req, res) => {
+  try {
+    const pdfs = await Pdf.find({}, 'originalFilename savedFilename');
+    res.status(200).json(pdfs);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send('Error retrieving PDFs.');
+  }
+});
+
+app.get('/file/:filename', (req, res) => {
+  const { filename } = req.params;
+  const filePath = path.join(uploadsDir, filename);
+
+  fs.access(filePath, fs.constants.F_OK, (err) => {
+    if (err) {
+      console.error('File does not exist:', filePath);
+      return res.status(404).send('File not found.');
+    }
+    res.sendFile(filePath);
   });
 });
 
-app.post('/upload', upload.single('file'), (req, res) => {
-  if (!req.file) return res.status(400).send('No file uploaded.');
-  res.status(200).json({ filename: req.file.filename });
-});
-
+// New Quiz Generation Endpoint
 app.post('/generate-quiz', async (req, res) => {
-  console.log('Quiz generation request received. Sending mock quiz data.');
+    const { pdfId } = req.body;
 
-  const fakeQuiz = {
-    mcqs: [
-      {
-        question: 'What is the fundamental unit of life?',
-        options: ['Atom', 'Molecule', 'Cell', 'Organ'],
-        answer: 'Cell',
-        explanation: 'The cell is the basic structural and functional unit of all known organisms.',
-      },
-      {
-        question: 'Which of these is a force that opposes motion?',
-        options: ['Gravity', 'Friction', 'Magnetism', 'Inertia'],
-        answer: 'Friction',
-        explanation: 'Friction is the force resisting the relative motion of solid surfaces, fluid layers, and material elements sliding against each other.',
-      },
-    ],
-    saqs: [
-      {
-        question: 'What is the chemical formula for water?',
-        answer: 'H2O',
-        explanation: 'A water molecule consists of two hydrogen atoms bonded to a single oxygen atom.',
-      },
-    ],
-    laqs: [
-      {
-        question: 'Briefly explain Newton\'s First Law of Motion.',
-        answer: 'Newton\'s First Law states that an object will remain at rest or in uniform motion in a straight line unless acted upon by an external force.',
-        explanation: 'This is also known as the law of inertia.',
-      },
-    ],
-  };
+    try {
+        const pdfDoc = await Pdf.findById(pdfId);
+        if (!pdfDoc) {
+            return res.status(404).send('PDF not found.');
+        }
 
-  setTimeout(() => {
-    res.status(200).json(fakeQuiz);
-  }, 1500);
+        // We'll take the first ~4000 characters for performance.
+        // You can adjust this or implement more advanced chunking later.
+        const content = pdfDoc.textContent.substring(0, 4000);
+
+        const prompt = `
+            Based on the following text, generate a quiz with 3 multiple-choice questions (MCQ),
+            2 short-answer questions (SAQ), and 1 long-answer question (LAQ).
+            For each MCQ, provide 4 options and indicate the correct answer.
+            For all questions, provide a brief explanation for the answer.
+            Format the output as a JSON object with a single key "quiz" which is an array of question objects.
+            Each question object should have the following structure:
+            {
+              "type": "MCQ" | "SAQ" | "LAQ",
+              "question": "Your question here",
+              "options": ["Option 1", "Option 2", "Option 3", "Option 4"], // Only for MCQ
+              "answer": "The correct answer", // For MCQ, this is one of the options. For SAQ/LAQ, this is the model answer.
+              "explanation": "A brief explanation of the answer."
+            }
+
+            Text:
+            ---
+            ${content}
+            ---
+        `;
+
+        const response = await openai.chat.completions.create({
+            model: 'gpt-3.5-turbo',
+            messages: [{ role: 'user', content: prompt }],
+        });
+
+        const quizData = JSON.parse(response.choices[0].message.content);
+        res.status(200).json(quizData);
+
+    } catch (error) {
+        console.error('Error generating quiz:', error);
+        res.status(500).send('Failed to generate quiz.');
+    }
 });
 
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+
+app.listen(port, () => {
+  console.log(`Server is running on port ${port}`);
 });

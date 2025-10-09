@@ -1,151 +1,159 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import './App.css';
 import { Document, Page, pdfjs } from 'react-pdf';
-import 'react-pdf/dist/Page/AnnotationLayer.css';
-import 'react-pdf/dist/Page/TextLayer.css';
+import './App.css';
 import QuizView from './QuizView';
 
-// Use the local worker file from the public folder
-pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.js";
+pdfjs.GlobalWorkerOptions.workerSrc = `/pdf.worker.min.js`;
 
 function App() {
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [pdfUrl, setPdfUrl] = useState('');
+  const [file, setFile] = useState(null);
+  const [pdfs, setPdfs] = useState([]);
+  const [selectedPdf, setSelectedPdf] = useState(null);
   const [numPages, setNumPages] = useState(null);
-  const [uploadedFiles, setUploadedFiles] = useState([]);
-  const [selectedPdf, setSelectedPdf] = useState('');
-  const [quizData, setQuizData] = useState(null);
+  const [quiz, setQuiz] = useState(null);
   const [isLoadingQuiz, setIsLoadingQuiz] = useState(false);
 
-  const fetchFiles = async () => {
-    try {
-      const response = await axios.get('http://localhost:5000/files');
-      setUploadedFiles(response.data);
-    } catch (error) {
-      console.error("Error fetching files:", error);
-    }
-  };
-
   useEffect(() => {
-    fetchFiles();
+    fetchPdfs();
   }, []);
 
-  useEffect(() => {
-    if (selectedPdf) {
-      const fileUrl = `http://localhost:5000/files/${selectedPdf}`;
-      setPdfUrl(fileUrl);
-      setQuizData(null);
-    } else {
-      setPdfUrl('');
+  const fetchPdfs = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/pdfs');
+      if (response.ok) {
+        const data = await response.json();
+        setPdfs(data);
+      } else {
+        console.error('Failed to fetch PDFs');
+      }
+    } catch (error) {
+      console.error('Error fetching PDFs:', error);
     }
-  }, [selectedPdf]);
+  };
 
-  const handleFileChange = (event) => setSelectedFile(event.target.files[0]);
+  const handleFileChange = (e) => {
+    const selectedFile = e.target.files[0];
+    console.log('File selected in handleFileChange:', selectedFile); // <-- DEBUG LOG 1
+    setFile(selectedFile);
+  };
 
   const handleUpload = async () => {
-    if (!selectedFile) return;
+    console.log('handleUpload triggered. Current file state:', file); // <-- DEBUG LOG 2
+    if (!file) {
+      alert('Please select a file');
+      return;
+    }
     const formData = new FormData();
-    formData.append('file', selectedFile);
+    formData.append('file', file);
     try {
-      const response = await axios.post('http://localhost:5000/upload', formData);
-      alert('File uploaded successfully!');
-      await fetchFiles();
-      setSelectedPdf(response.data.filename);
-    } catch (error) {
-      alert('Error uploading file.');
-    }
-  };
-  
-  const handleGenerateQuiz = async () => {
-    if (!selectedPdf) return;
-    setIsLoadingQuiz(true);
-    setQuizData(null);
-    try {
-      const response = await axios.post('http://localhost:5000/generate-quiz', {
-        filename: selectedPdf,
+      const response = await fetch('http://localhost:5000/upload', {
+        method: 'POST',
+        body: formData,
       });
-      setQuizData(response.data);
+      if (response.ok) {
+        alert('File uploaded successfully');
+        setFile(null);
+        document.querySelector("input[type='file']").value = "";
+        fetchPdfs();
+      } else {
+        alert('File upload failed');
+      }
     } catch (error) {
-      alert('Failed to generate quiz.');
-    } finally {
-      setIsLoadingQuiz(false);
+      console.error('Error uploading file:', error);
     }
-  };
-
-  const handleDownload = () => {
-    if (!pdfUrl) return;
-    const link = document.createElement('a');
-    link.href = pdfUrl;
-    link.download = formatFilename(selectedPdf);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-  
-  const formatFilename = (filename) => {
-    if (/^\d{13}-/.test(filename)) {
-      return filename.substring(14);
-    }
-    return filename;
   };
 
   function onDocumentLoadSuccess({ numPages }) {
     setNumPages(numPages);
   }
 
+  const handlePdfSelection = (e) => {
+    const selected = pdfs.find(pdf => pdf._id === e.target.value);
+    setSelectedPdf(selected);
+    setNumPages(null);
+    setQuiz(null);
+  };
+
+  const handleGenerateQuiz = async () => {
+    if (!selectedPdf) {
+      alert('Please select a PDF first.');
+      return;
+    }
+    setIsLoadingQuiz(true);
+    setQuiz(null);
+    try {
+      const response = await fetch('http://localhost:5000/generate-quiz', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pdfId: selectedPdf._id }),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setQuiz(data.quiz);
+      } else {
+        alert('Failed to generate quiz.');
+      }
+    } catch (error) {
+      console.error('Error generating quiz:', error);
+    } finally {
+      setIsLoadingQuiz(false);
+    }
+  };
+
   return (
-    <div className="app-container">
-      <aside className="sidebar">
-        <header className="sidebar-header">
-          <h1>Lumina</h1>
-          <p>Your Personal Study Companion</p>
-        </header>
-        <div className="sidebar-content">
-          <div className="upload-section">
-            <h2>Upload a New PDF</h2>
+    <div className="App">
+      <header className="App-header">
+        <h1>PDF Quiz Generator</h1>
+      </header>
+      <main className="main-content">
+        <div className="controls-container">
+          <div className="card">
+            <h2>Upload a PDF</h2>
             <input type="file" onChange={handleFileChange} accept=".pdf" />
-            <button onClick={handleUpload} disabled={!selectedFile}>Upload PDF</button>
+            <button onClick={handleUpload}>Upload</button>
           </div>
-          <hr />
-          <div className="selector-section">
-            <h2>Select an Existing PDF</h2>
-            <select value={selectedPdf} onChange={(e) => setSelectedPdf(e.target.value)}>
-              <option value="">-- Select a PDF --</option>
-              {uploadedFiles.map(file => (
-                <option key={file} value={file}>{formatFilename(file)}</option>
+          <div className="card">
+            <h2>1. Select a Source</h2>
+            <select onChange={handlePdfSelection} defaultValue="">
+              <option value="" disabled>Choose a PDF</option>
+              {pdfs.map((pdf) => (
+                <option key={pdf._id} value={pdf._id}>
+                  {pdf.originalFilename}
+                </option>
               ))}
             </select>
-            <button onClick={handleDownload} disabled={!selectedPdf} className="download-btn">
-              Download PDF
-            </button>
           </div>
-          <div className="quiz-section">
-            <button onClick={handleGenerateQuiz} disabled={!selectedPdf || isLoadingQuiz}>
-              {isLoadingQuiz ? '🧠 Generating...' : 'Generate Quiz'}
-            </button>
-          </div>
+          
+          {selectedPdf && (
+            <div className="card">
+              <h2>2. Generate Quiz</h2>
+              <button onClick={handleGenerateQuiz} disabled={isLoadingQuiz}>
+                {isLoadingQuiz ? 'Generating...' : 'Start Quiz'}
+              </button>
+            </div>
+          )}
+
+          {quiz && (
+             <div className="card">
+               <QuizView quizData={quiz} />
+             </div>
+          )}
+
         </div>
-      </aside>
-      <main className="main-content">
-        {quizData ? (
-          <QuizView quizData={quizData} onBack={() => setQuizData(null)} />
-        ) : (
-          <div className="pdf-viewer-container">
-            {isLoadingQuiz ? (
-              <div className="placeholder"><h2>Generating Your Quiz...</h2><p>This may take a moment.</p></div>
-            ) : pdfUrl ? (
-              <Document file={pdfUrl} onLoadSuccess={onDocumentLoadSuccess}
-                onLoadError={(error) => console.error("PDF Load Error:", error.message)}>
-                {Array.from(new Array(numPages || 0), (el, index) => (
-                  <Page key={`page_${index + 1}`} pageNumber={index + 1} renderTextLayer={false}/>
-                ))}
-              </Document>
-            ) : (
-              <div className="placeholder"><h2>Select a PDF to begin</h2></div>
-            )}
-          </div>
-        )}
+        <div className="pdf-viewer-container">
+          {selectedPdf ? (
+            <Document
+              file={`http://localhost:5000/file/${selectedPdf.savedFilename}`}
+              onLoadSuccess={onDocumentLoadSuccess}
+            >
+              {Array.from(new Array(numPages), (el, index) => (
+                <Page key={`page_${index + 1}`} pageNumber={index + 1} />
+              ))}
+            </Document>
+          ) : (
+            <div className="placeholder-text">{!isLoadingQuiz ? 'Select a PDF to view it here.' : 'Generating Quiz...'}</div>
+          )}
+        </div>
       </main>
     </div>
   );

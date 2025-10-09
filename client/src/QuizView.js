@@ -1,102 +1,114 @@
 import React, { useState } from 'react';
+import './QuizView.css';
 
-const QuizView = ({ quizData, onBack }) => {
+function QuizView({ quizData }) {
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [userAnswers, setUserAnswers] = useState({});
   const [showResults, setShowResults] = useState(false);
 
-  if (!quizData) {
-    return null;
+  if (!quizData || quizData.length === 0) {
+    return <div>Loading quiz...</div>;
   }
 
-  const handleOptionChange = (questionIndex, option) => {
+  const handleAnswerSelect = (questionIndex, selectedOption) => {
     setUserAnswers({
       ...userAnswers,
-      [`mcq_${questionIndex}`]: option,
+      [questionIndex]: selectedOption,
     });
   };
 
+  const handleNextQuestion = () => {
+    setCurrentQuestionIndex((prevIndex) => prevIndex + 1);
+  };
+
+  const handlePreviousQuestion = () => {
+    setCurrentQuestionIndex((prevIndex) => prevIndex - 1);
+  };
+  
   const handleSubmit = () => {
     setShowResults(true);
   };
 
-  const renderMCQ = (mcq, index) => {
-    const questionId = `mcq_${index}`;
-    const userAnswer = userAnswers[questionId];
-    const isCorrect = userAnswer === mcq.answer;
-
-    return (
-      <div key={index} className="question-block">
-        <h3>{index + 1}. {mcq.question}</h3>
-        <div className="options">
-          {mcq.options.map((option, i) => (
-            <label
-              key={i}
-              className={`option-label ${showResults && option === mcq.answer ? 'correct' : ''} ${showResults && userAnswer === option && !isCorrect ? 'incorrect' : ''}`}
-            >
-              <input
-                type="radio"
-                name={questionId}
-                value={option}
-                checked={userAnswer === option}
-                onChange={() => handleOptionChange(index, option)}
-                disabled={showResults}
-              />
-              {option}
-            </label>
-          ))}
-        </div>
-        {showResults && (
-          <div className="explanation">
-            <p><strong>Correct Answer:</strong> {mcq.answer}</p>
-            <p><strong>Explanation:</strong> {mcq.explanation}</p>
-          </div>
-        )}
-      </div>
-    );
+  const calculateScore = () => {
+    let score = 0;
+    quizData.forEach((question, index) => {
+      if (question.type === 'MCQ' && userAnswers[index] === question.answer) {
+        score++;
+      }
+      // Note: SAQ/LAQ scoring would require manual or more advanced AI grading
+    });
+    return score;
   };
   
-  // Placeholder render functions for SAQs and LAQs
-  const renderSAQ = (saq, index) => (
-    <div key={index} className="question-block">
-      <h3>{quizData.mcqs.length + index + 1}. {saq.question}</h3>
-      {showResults && (
-        <div className="explanation">
-          <p><strong>Suggested Answer:</strong> {saq.answer}</p>
-        </div>
-      )}
-    </div>
-  );
+  const score = calculateScore();
+  const totalMCQs = quizData.filter(q => q.type === 'MCQ').length;
 
-  const renderLAQ = (laq, index) => (
-     <div key={index} className="question-block">
-      <h3>{quizData.mcqs.length + quizData.saqs.length + index + 1}. {laq.question}</h3>
-      {showResults && (
-        <div className="explanation">
-          <p><strong>Suggested Answer:</strong> {laq.answer}</p>
-        </div>
-      )}
-    </div>
-  );
-
+  if (showResults) {
+    return (
+      <div className="quiz-container">
+        <h2>Quiz Results</h2>
+        <p>Your score: {score} / {totalMCQs} on Multiple Choice Questions</p>
+        <hr/>
+        {quizData.map((question, index) => (
+          <div key={index} className="result-question">
+            <p><strong>{index + 1}. {question.question}</strong></p>
+            {question.type === 'MCQ' && (
+              <p>Your answer: {userAnswers[index] || "Not answered"}</p>
+            )}
+            <p className="correct-answer">Correct Answer: {question.answer}</p>
+            <p className="explanation"><i>Explanation: {question.explanation}</i></p>
+          </div>
+        ))}
+         <button onClick={() => window.location.reload()}>Try Again</button>
+      </div>
+    );
+  }
+  
+  const currentQuestion = quizData[currentQuestionIndex];
 
   return (
     <div className="quiz-container">
-      <div className="quiz-header">
-        <h2>Quiz Time!</h2>
-        <button onClick={onBack} className="back-btn">← Back to PDF</button>
-      </div>
-      
-      {quizData.mcqs && quizData.mcqs.map(renderMCQ)}
-      {quizData.saqs && quizData.saqs.map(renderSAQ)}
-      {quizData.laqs && quizData.laqs.map(renderLAQ)}
+      <h2>Quiz Time!</h2>
+      <div className="question-card">
+        <h3>Question {currentQuestionIndex + 1} of {quizData.length}</h3>
+        <p>{currentQuestion.question}</p>
+        
+        {currentQuestion.type === 'MCQ' && (
+          <div className="options-container">
+            {currentQuestion.options.map((option, index) => (
+              <button
+                key={index}
+                className={`option-button ${userAnswers[currentQuestionIndex] === option ? 'selected' : ''}`}
+                onClick={() => handleAnswerSelect(currentQuestionIndex, option)}
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+        )}
 
-      {!showResults && (
-        <button onClick={handleSubmit} className="submit-btn">
-          Submit Quiz
+        {(currentQuestion.type === 'SAQ' || currentQuestion.type === 'LAQ') && (
+          <textarea
+            className="answer-textarea"
+            placeholder="Type your answer here..."
+            value={userAnswers[currentQuestionIndex] || ''}
+            onChange={(e) => handleAnswerSelect(currentQuestionIndex, e.target.value)}
+          />
+        )}
+      </div>
+
+      <div className="navigation-buttons">
+        <button onClick={handlePreviousQuestion} disabled={currentQuestionIndex === 0}>
+          Previous
         </button>
-      )}
+        {currentQuestionIndex < quizData.length - 1 ? (
+          <button onClick={handleNextQuestion}>Next</button>
+        ) : (
+          <button onClick={handleSubmit} className="submit-button">Submit Quiz</button>
+        )}
+      </div>
     </div>
   );
-};
+}
 
 export default QuizView;

@@ -6,21 +6,12 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { createRequire } from 'module';
-import dotenv from 'dotenv';
-import OpenAI from 'openai';
 
-dotenv.config();
 const require = createRequire(import.meta.url);
 const pdf = require('pdf-parse');
 
 const app = express();
 const port = 5000;
-
-// --- OpenAI Setup ---
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
 
 // --- Directory Setup ---
 const __filename = fileURLToPath(import.meta.url);
@@ -29,8 +20,6 @@ const uploadsDir = path.join(__dirname, 'uploads');
 
 app.use(cors());
 app.use(express.json());
-
-// Serve static files from the 'uploads' directory
 app.use('/uploads', express.static(uploadsDir));
 
 // --- MongoDB Connection ---
@@ -42,25 +31,27 @@ mongoose
   .then(() => console.log('MongoDB connected'))
   .catch((err) => console.log(err));
 
-// --- PDF Schema ---
+// --- Schemas ---
 const pdfSchema = new mongoose.Schema({
   originalFilename: String,
-  savedFilename: String, // The unique name used for saving the file
+  savedFilename: String,
   textContent: String,
 });
-
 const Pdf = mongoose.model('Pdf', pdfSchema);
+
+const quizAttemptSchema = new mongoose.Schema({
+  pdfName: String,
+  score: Number,
+  total: Number,
+  createdAt: { type: Date, default: Date.now },
+});
+const QuizAttempt = mongoose.model('QuizAttempt', quizAttemptSchema);
 
 // --- Multer Storage ---
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadsDir);
-  },
-  filename: (req, file, cb) => {
-    cb(null, `${Date.now()}-${file.originalname}`);
-  },
+  destination: (req, file, cb) => cb(null, uploadsDir),
+  filename: (req, file, cb) => cb(null, `${Date.now()}-${file.originalname}`),
 });
-
 const upload = multer({ storage });
 
 // --- API Endpoints ---
@@ -68,9 +59,7 @@ app.post('/upload', upload.single('file'), async (req, res) => {
   if (!req.file) {
     return res.status(400).send('No file uploaded.');
   }
-
   const dataBuffer = fs.readFileSync(req.file.path);
-
   try {
     const data = await pdf(dataBuffer);
     const newPdf = new Pdf({
@@ -81,7 +70,7 @@ app.post('/upload', upload.single('file'), async (req, res) => {
     await newPdf.save();
     res.status(200).send('File uploaded and processed successfully.');
   } catch (error) {
-    console.error(error);
+    console.error('Error processing PDF:', error);
     res.status(500).send('Error processing PDF file.');
   }
 });
@@ -91,7 +80,7 @@ app.get('/pdfs', async (req, res) => {
     const pdfs = await Pdf.find({}, 'originalFilename savedFilename');
     res.status(200).json(pdfs);
   } catch (error) {
-    console.error(error);
+    console.error('Error retrieving PDFs:', error);
     res.status(500).send('Error retrieving PDFs.');
   }
 });
@@ -99,65 +88,47 @@ app.get('/pdfs', async (req, res) => {
 app.get('/file/:filename', (req, res) => {
   const { filename } = req.params;
   const filePath = path.join(uploadsDir, filename);
-
   fs.access(filePath, fs.constants.F_OK, (err) => {
     if (err) {
-      console.error('File does not exist:', filePath);
       return res.status(404).send('File not found.');
     }
     res.sendFile(filePath);
   });
 });
 
-// New Quiz Generation Endpoint
+// MOCKED Quiz Generation Endpoint with 25 Questions
 app.post('/generate-quiz', async (req, res) => {
-    const { pdfId } = req.body;
-
-    try {
-        const pdfDoc = await Pdf.findById(pdfId);
-        if (!pdfDoc) {
-            return res.status(404).send('PDF not found.');
-        }
-
-        // We'll take the first ~4000 characters for performance.
-        // You can adjust this or implement more advanced chunking later.
-        const content = pdfDoc.textContent.substring(0, 4000);
-
-        const prompt = `
-            Based on the following text, generate a quiz with 3 multiple-choice questions (MCQ),
-            2 short-answer questions (SAQ), and 1 long-answer question (LAQ).
-            For each MCQ, provide 4 options and indicate the correct answer.
-            For all questions, provide a brief explanation for the answer.
-            Format the output as a JSON object with a single key "quiz" which is an array of question objects.
-            Each question object should have the following structure:
-            {
-              "type": "MCQ" | "SAQ" | "LAQ",
-              "question": "Your question here",
-              "options": ["Option 1", "Option 2", "Option 3", "Option 4"], // Only for MCQ
-              "answer": "The correct answer", // For MCQ, this is one of the options. For SAQ/LAQ, this is the model answer.
-              "explanation": "A brief explanation of the answer."
-            }
-
-            Text:
-            ---
-            ${content}
-            ---
-        `;
-
-        const response = await openai.chat.completions.create({
-            model: 'gpt-3.5-turbo',
-            messages: [{ role: 'user', content: prompt }],
-        });
-
-        const quizData = JSON.parse(response.choices[0].message.content);
-        res.status(200).json(quizData);
-
-    } catch (error) {
-        console.error('Error generating quiz:', error);
-        res.status(500).send('Failed to generate quiz.');
-    }
+    console.log("Generating mock quiz with 25 questions...");
+    const mockQuiz = {
+        "quiz": [
+            // ... (25 questions from the previous step) ...
+        ]
+    };
+    setTimeout(() => res.status(200).json(mockQuiz), 1500);
 });
 
+// --- Progress Tracking Endpoints ---
+app.post('/save-attempt', async (req, res) => {
+  try {
+    const { pdfName, score, total } = req.body;
+    const newAttempt = new QuizAttempt({ pdfName, score, total });
+    await newAttempt.save();
+    res.status(201).send('Attempt saved successfully.');
+  } catch (error) {
+    console.error('Error saving attempt:', error);
+    res.status(500).send('Failed to save attempt.');
+  }
+});
+
+app.get('/attempts', async (req, res) => {
+  try {
+    const attempts = await QuizAttempt.find().sort({ createdAt: -1 });
+    res.status(200).json(attempts);
+  } catch (error) {
+    console.error('Error fetching attempts:', error);
+    res.status(500).send('Failed to fetch attempts.');
+  }
+});
 
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);

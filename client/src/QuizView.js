@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import './QuizView.css';
 
-function QuizView({ quizData }) {
+// Pass the PDF name down as a prop
+function QuizView({ quizData, pdfName }) {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [userAnswers, setUserAnswers] = useState({});
   const [showResults, setShowResults] = useState(false);
@@ -25,7 +26,24 @@ function QuizView({ quizData }) {
     setCurrentQuestionIndex((prevIndex) => prevIndex - 1);
   };
   
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    const score = calculateScore();
+    const totalMCQs = quizData.filter(q => q.type === 'MCQ').length;
+
+    try {
+      await fetch('http://localhost:5000/save-attempt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pdfName: pdfName,
+          score: score,
+          total: totalMCQs,
+        }),
+      });
+    } catch (error) {
+      console.error("Failed to save attempt:", error);
+    }
+
     setShowResults(true);
   };
 
@@ -35,15 +53,13 @@ function QuizView({ quizData }) {
       if (question.type === 'MCQ' && userAnswers[index] === question.answer) {
         score++;
       }
-      // Note: SAQ/LAQ scoring would require manual or more advanced AI grading
     });
     return score;
   };
   
-  const score = calculateScore();
-  const totalMCQs = quizData.filter(q => q.type === 'MCQ').length;
-
   if (showResults) {
+    const score = calculateScore();
+    const totalMCQs = quizData.filter(q => q.type === 'MCQ').length;
     return (
       <div className="quiz-container">
         <h2>Quiz Results</h2>
@@ -59,7 +75,7 @@ function QuizView({ quizData }) {
             <p className="explanation"><i>Explanation: {question.explanation}</i></p>
           </div>
         ))}
-         <button onClick={() => window.location.reload()}>Try Again</button>
+         <button onClick={() => window.location.reload()}>Take Another Quiz</button>
       </div>
     );
   }

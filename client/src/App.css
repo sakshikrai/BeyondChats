@@ -7,6 +7,7 @@
   padding: 20px;
   color: white;
   margin-bottom: 20px;
+  position: relative; /* Added for positioning the button */
 }
 
 .main-content {
@@ -14,6 +15,25 @@
   flex-direction: row;
   padding: 0 20px;
   gap: 20px;
+  position: relative; /* Needed for the ::before pseudo-element */
+  z-index: 1; /* Ensure content is above the background image */
+}
+
+.main-content::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 500px;
+  height: 500px;
+  /* Corrected URL path with single .jpg */
+  background-image: url('./Assets/background_logo.jpg');
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  opacity: 0.05;
+  transform: translate(-50%, -50%);
+  z-index: -1; /* Place the pseudo-element behind the content */
 }
 
 .controls-container {
@@ -21,10 +41,11 @@
   flex-direction: column;
   width: 30%;
   max-width: 400px;
+  z-index: 1; /* Ensure controls are above the background */
 }
 
 .card {
-  background-color: #f0f0f0;
+  background-color: rgba(240, 240, 240, 0.95); /* Slightly transparent */
   border-radius: 8px;
   padding: 20px;
   margin-bottom: 20px;
@@ -38,7 +59,7 @@ input[type='file'] {
 button {
   background-color: #61dafb;
   border: none;
-  color: white;
+  color: #282c34;
   padding: 10px 20px;
   text-align: center;
   text-decoration: none;
@@ -63,7 +84,8 @@ select {
   border-radius: 8px;
   height: 80vh;
   overflow-y: auto;
-  background-color: #e9e9e9;
+  background-color: rgba(233, 233, 233, 0.8); /* Slightly transparent */
+  z-index: 1; /* Ensure viewer is above the background */
 }
 
 .placeholder-text {
@@ -77,6 +99,17 @@ select {
 
 /* Styles for react-pdf */
 .react-pdf__Page {
-  margin-bottom: 10px;
+  margin: 0 auto 10px auto;
   box-shadow: 0 0 8px rgba(0, 0, 0, 0.2);
+}
+
+.dashboard-toggle {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  font-size: 1rem;
+  padding: 8px 16px;
+  background-color: #f0f0f0;
+  color: #282c34;
+  border: 1px solid #282c34;
 }

@@ -1,0 +1,45 @@
+.dashboard-container {
+    padding: 20px;
+    background-color: white; /* Ensure this is white */
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    position: relative; /* Important for z-index if needed */
+    z-index: 1; /* Make sure it's above the background image */
+}
+
+.attempts-list {
+  list-style-type: none;
+  padding: 0;
+}
+
+.attempt-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: white;
+  padding: 15px;
+  border-radius: 4px;
+  margin-bottom: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.pdf-name {
+  font-weight: bold;
+  flex: 2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-right: 15px;
+}
+
+.score {
+  flex: 1;
+  color: #333;
+}
+
+.date {
+  flex: 1;
+  text-align: right;
+  color: #777;
+  font-size: 0.9em;
+}

@@ -1,8 +1,10 @@
 .quiz-container {
-  padding: 20px;
-  background-color: #f9f9f9;
-  border-radius: 8px;
-  width: 100%;
+    padding: 20px;
+    background-color: white; /* Ensure this is white */
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    position: relative; /* Important for z-index if needed */
+    z-index: 1; /* Make sure it's above the background image */
 }
 
 .question-card {

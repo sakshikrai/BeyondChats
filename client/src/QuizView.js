@@ -4,6 +4,10 @@ const QuizView = ({ quizData, onBack }) => {
   const [userAnswers, setUserAnswers] = useState({});
   const [showResults, setShowResults] = useState(false);
 
+  if (!quizData) {
+    return null;
+  }
+
   const handleOptionChange = (questionIndex, option) => {
     setUserAnswers({
       ...userAnswers,
@@ -50,6 +54,30 @@ const QuizView = ({ quizData, onBack }) => {
       </div>
     );
   };
+  
+  // Placeholder render functions for SAQs and LAQs
+  const renderSAQ = (saq, index) => (
+    <div key={index} className="question-block">
+      <h3>{quizData.mcqs.length + index + 1}. {saq.question}</h3>
+      {showResults && (
+        <div className="explanation">
+          <p><strong>Suggested Answer:</strong> {saq.answer}</p>
+        </div>
+      )}
+    </div>
+  );
+
+  const renderLAQ = (laq, index) => (
+     <div key={index} className="question-block">
+      <h3>{quizData.mcqs.length + quizData.saqs.length + index + 1}. {laq.question}</h3>
+      {showResults && (
+        <div className="explanation">
+          <p><strong>Suggested Answer:</strong> {laq.answer}</p>
+        </div>
+      )}
+    </div>
+  );
+
 
   return (
     <div className="quiz-container">
@@ -57,8 +85,10 @@ const QuizView = ({ quizData, onBack }) => {
         <h2>Quiz Time!</h2>
         <button onClick={onBack} className="back-btn">← Back to PDF</button>
       </div>
+      
       {quizData.mcqs && quizData.mcqs.map(renderMCQ)}
-      {/* Yahan SAQs aur LAQs render karne ka code add kar sakte hain */}
+      {quizData.saqs && quizData.saqs.map(renderSAQ)}
+      {quizData.laqs && quizData.laqs.map(renderLAQ)}
 
       {!showResults && (
         <button onClick={handleSubmit} className="submit-btn">

@@ -6,7 +6,8 @@ import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 import QuizView from './QuizView';
 
-pdfjs.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+// Use the local worker file from the public folder
+pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.js";
 
 function App() {
   const [selectedFile, setSelectedFile] = useState(null);
@@ -72,6 +73,23 @@ function App() {
     }
   };
 
+  const handleDownload = () => {
+    if (!pdfUrl) return;
+    const link = document.createElement('a');
+    link.href = pdfUrl;
+    link.download = formatFilename(selectedPdf);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+  
+  const formatFilename = (filename) => {
+    if (/^\d{13}-/.test(filename)) {
+      return filename.substring(14);
+    }
+    return filename;
+  };
+
   function onDocumentLoadSuccess({ numPages }) {
     setNumPages(numPages);
   }
@@ -95,9 +113,12 @@ function App() {
             <select value={selectedPdf} onChange={(e) => setSelectedPdf(e.target.value)}>
               <option value="">-- Select a PDF --</option>
               {uploadedFiles.map(file => (
-                <option key={file} value={file}>{file.substring(14)}</option>
+                <option key={file} value={file}>{formatFilename(file)}</option>
               ))}
             </select>
+            <button onClick={handleDownload} disabled={!selectedPdf} className="download-btn">
+              Download PDF
+            </button>
           </div>
           <div className="quiz-section">
             <button onClick={handleGenerateQuiz} disabled={!selectedPdf || isLoadingQuiz}>
@@ -112,9 +133,10 @@ function App() {
         ) : (
           <div className="pdf-viewer-container">
             {isLoadingQuiz ? (
-              <div className="placeholder"><h2>Generating Your Quiz...</h2><p>The AI is hard at work. This may take a moment.</p></div>
+              <div className="placeholder"><h2>Generating Your Quiz...</h2><p>This may take a moment.</p></div>
             ) : pdfUrl ? (
-              <Document file={pdfUrl} onLoadSuccess={onDocumentLoadSuccess}>
+              <Document file={pdfUrl} onLoadSuccess={onDocumentLoadSuccess}
+                onLoadError={(error) => console.error("PDF Load Error:", error.message)}>
                 {Array.from(new Array(numPages || 0), (el, index) => (
                   <Page key={`page_${index + 1}`} pageNumber={index + 1} renderTextLayer={false}/>
                 ))}
